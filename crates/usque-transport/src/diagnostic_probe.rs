@@ -207,12 +207,16 @@ pub async fn probe_h3_endpoint_results(
             },
         };
         let result = match result {
-            NetworkProbeResult::Passed { .. } =>
-                NetworkProbeResult::Passed { milliseconds: elapsed_ms(started) },
+            NetworkProbeResult::Passed { .. } => NetworkProbeResult::Passed {
+                milliseconds: elapsed_ms(started),
+            },
             other => other,
         };
         results.push(EndpointHandshakeResult { endpoint, result });
-        if matches!(result, NetworkProbeResult::Cancelled | NetworkProbeResult::NetworkChanged) {
+        if matches!(
+            result,
+            NetworkProbeResult::Cancelled | NetworkProbeResult::NetworkChanged
+        ) {
             break;
         }
     }
