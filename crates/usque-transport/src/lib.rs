@@ -96,7 +96,7 @@ pub use data_plane::{
 };
 pub use diagnostic_probe::{
     NetworkProbeResult, PROBE_IO_TIMEOUT as NETWORK_PROBE_IO_TIMEOUT, ResolvedH3ProbeEndpoints,
-    h3_probe_endpoints, h3_probe_endpoints_resolved, probe_encrypted_dns, probe_h3_handshake,
+    EndpointHandshakeResult, h3_probe_endpoints, h3_probe_endpoints_resolved, probe_encrypted_dns, probe_h3_handshake, probe_h3_endpoint_results,
     probe_h3_handshake_candidates,
 };
 pub use direct_diagnostics::DirectGatewaySnapshot;
