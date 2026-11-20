@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../core/warp_endpoint_candidates.dart';
@@ -49,6 +50,7 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
   late bool _presetMode;
   late EndpointPresetRegion _presetRegion;
   String _warpRegionPreference = 'us';
+  static const _warpRegionPreferenceKey = 'warp_region_preference';
   late bool _allowLan;
   late bool _disableQuic;
   late DirectDnsSettings _directDns;
@@ -260,7 +262,21 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
     _dnsV4 = TextEditingController();
     _dnsV6 = TextEditingController();
     _load(widget.controller.activeProfile);
+    _loadWarpRegionPreference();
     widget.controller.addListener(_accountChanged);
+  }
+
+  Future<void> _loadWarpRegionPreference() async {
+    final preferences = await SharedPreferences.getInstance();
+    final saved = preferences.getString(_warpRegionPreferenceKey);
+    if (!mounted || saved == null) return;
+    const supported = {
+      'us', 'jp', 'sg', 'hk', 'tw', 'kr', 'de', 'gb',
+      'fr', 'nl', 'fi', 'ca', 'au', 'br',
+    };
+    if (supported.contains(saved)) {
+      setState(() => _warpRegionPreference = saved);
+    }
   }
 
   void _load(UsqueProfile profile, {bool baseline = true}) {
@@ -615,14 +631,31 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
               ),
               items: const [
                 DropdownMenuItem(value: 'us', child: Text('美国')),
+                DropdownMenuItem(value: 'jp', child: Text('日本')),
+                DropdownMenuItem(value: 'sg', child: Text('新加坡')),
+                DropdownMenuItem(value: 'hk', child: Text('中国香港')),
+                DropdownMenuItem(value: 'tw', child: Text('中国台湾')),
+                DropdownMenuItem(value: 'kr', child: Text('韩国')),
                 DropdownMenuItem(value: 'de', child: Text('德国')),
+                DropdownMenuItem(value: 'gb', child: Text('英国')),
+                DropdownMenuItem(value: 'fr', child: Text('法国')),
+                DropdownMenuItem(value: 'nl', child: Text('荷兰')),
                 DropdownMenuItem(value: 'fi', child: Text('芬兰')),
+                DropdownMenuItem(value: 'ca', child: Text('加拿大')),
+                DropdownMenuItem(value: 'au', child: Text('澳大利亚')),
+                DropdownMenuItem(value: 'br', child: Text('巴西')),
               ],
               onChanged: _saving
                   ? null
-                  : (region) {
+                  : (region) async {
                       if (region == null) return;
                       setState(() => _warpRegionPreference = region);
+                      final preferences =
+                          await SharedPreferences.getInstance();
+                      await preferences.setString(
+                        _warpRegionPreferenceKey,
+                        region,
+                      );
                     },
             ),
           if (addresses && quickCandidates.isNotEmpty)
