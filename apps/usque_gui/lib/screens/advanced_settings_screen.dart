@@ -575,6 +575,24 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
     );
   }
 
+  String _warpRegionLabel(String region) => switch (region) {
+    'us' => '美国',
+    'jp' => '日本',
+    'sg' => '新加坡',
+    'hk' => '中国香港',
+    'tw' => '中国台湾',
+    'kr' => '韩国',
+    'de' => '德国',
+    'gb' => '英国',
+    'fr' => '法国',
+    'nl' => '荷兰',
+    'fi' => '芬兰',
+    'ca' => '加拿大',
+    'au' => '澳大利亚',
+    'br' => '巴西',
+    _ => '美国',
+  };
+
   Widget _endpointSection() {
     final strings = widget.controller.strings;
     final managed = _zeroTrustEndpointIpsManaged;
@@ -665,8 +683,8 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
               isExpanded: true,
               decoration: InputDecoration(
                 labelText: strings.get('endpoint_ip_quick_select'),
-                helperText: strings.get('endpoint_ip_quick_select_help'),
-                helperMaxLines: 3,
+                helperText: '${strings.get('endpoint_ip_quick_select_help')}\n地区偏好：${_warpRegionLabel(_warpRegionPreference)}（不代表 IP 地理归属）',
+                helperMaxLines: 4,
               ),
               items: [
                 for (final address in quickCandidates)
