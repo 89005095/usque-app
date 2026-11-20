@@ -195,7 +195,7 @@ pub async fn probe_h3_endpoint_results(
         let result = tokio::select! {
             biased;
             _ = cancellation.cancelled() => NetworkProbeResult::Cancelled,
-            outcome = timeout(PROBE_IO_TIMEOUT, crate::h3::diagnostic::handshake(
+            outcome = tokio::time::timeout(PROBE_IO_TIMEOUT, crate::h3::diagnostic::handshake(
                 endpoint,
                 sni,
                 identity,
