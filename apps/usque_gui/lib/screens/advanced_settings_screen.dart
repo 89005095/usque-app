@@ -616,7 +616,7 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
                   DropdownMenuItem(
                     value: address,
                     child: Text(
-                      '${address.contains(':') ? 'IPv6' : 'IPv4'} · $address',
+                      address.contains(':') ? 'IPv6 · $address' : 'IPv4 · $address',
                     ),
                   ),
               ],
