@@ -67,7 +67,7 @@ internal class ServiceDiagnosticProbes(
         }
         val json = profile()
         if (id <= 0 || kind !in setOf("dns", "h3", "h3_scan") || json == null || json.length > 256 * 1024 ||
-            (kind == "h3" && runtimeBusy())
+            (kind in setOf("h3", "h3_scan") && runtimeBusy())
         ) {
             respond(null)
             return
