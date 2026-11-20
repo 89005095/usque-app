@@ -179,6 +179,125 @@ pub extern "system" fn Java_io_github_georgexie2333_usque_NativeEngine_nativeDia
     })
 }
 
+/// Runs the authenticated, serial WARP H3 endpoint scan for the Android picker.
+/// This is deliberately separate from the one-shot health check: callers receive
+/// one allowlisted result per Cloudflare endpoint instead of only the first winner.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_io_github_georgexie2333_usque_NativeEngine_nativeDiagnosticEndpointScan<'local>(
+    mut environment: EnvUnowned<'local>,
+    _class: JClass<'local>,
+    id: jint,
+    profile: JString<'local>,
+    secret: JByteArray<'local>,
+    vpn_service: JObject<'local>,
+    vpn_protected: jboolean,
+) -> jstring {
+    with_jni_env(&mut environment, |environment| {
+        let payload = (|| {
+            let Some((_guard, cancellation)) = claim(id) else {
+                return serde_json::json!({"code":"cancelled","results":[]});
+            };
+            let Ok(profile) = profile.try_to_string(environment) else {
+                return serde_json::json!({"code":"failed","results":[]});
+            };
+            let Some(profile) = parse_android_profile(&profile).ok() else {
+                return serde_json::json!({"code":"failed","results":[]});
+            };
+            let Ok(secret) = environment.convert_byte_array(&secret) else {
+                return serde_json::json!({"code":"failed","results":[]});
+            };
+            let secret = Zeroizing::new(secret);
+            run_endpoint_scan(
+                environment,
+                profile,
+                &secret,
+                (vpn_service, vpn_protected == JNI_TRUE),
+                cancellation,
+            ).unwrap_or_else(|| serde_json::json!({"code":"failed","results":[]}))
+        })();
+        environment.new_string(payload.to_string()).map(JString::into_raw).unwrap_or_default()
+    })
+}
+
+#[cfg(not(target_os = "android"))]
+fn run_endpoint_scan(
+    _environment: &mut Env<'_>,
+    _profile: Profile,
+    _secret: &[u8],
+    _platform: (JObject<'_>, bool),
+    _cancellation: CancellationToken,
+) -> Option<serde_json::Value> {
+    Some(serde_json::json!({"code":"not_applicable","results":[]}))
+}
+
+#[cfg(target_os = "android")]
+fn run_endpoint_scan(
+    environment: &mut Env<'_>,
+    profile: Profile,
+    secret: &[u8],
+    platform: (JObject<'_>, bool),
+    cancellation: CancellationToken,
+) -> Option<serde_json::Value> {
+    use usque_transport::NetworkProbeResult as ProbeResult;
+    let (service, vpn) = platform;
+    if vpn || android_runtime::is_running()
+        || profile.data_plane != usque_core::DataPlaneMode::ConnectIp
+        || profile.transport == TransportPolicy::Http2
+    {
+        return Some(serde_json::json!({"code":"not_applicable","results":[]}));
+    }
+    let java_vm = environment.get_java_vm().ok()?;
+    let generation = environment.call_method(
+        &service,
+        jni_str!("getUnderlyingNetworkGeneration"),
+        jni_sig!("()J"),
+        &[],
+    ).and_then(|value| value.j()).ok()?.max(0) as u64;
+    let service = environment.new_global_ref(service).ok()?;
+    let protector: Arc<dyn SocketProtector> = Arc::new(ProbeProtector(AndroidSocketProtector {
+        physical_watch: std::sync::OnceLock::new(),
+        java_vm,
+        service,
+        policy: AndroidSocketRoutePolicy::Proxy,
+        network_generation: AtomicU64::new(generation),
+    }));
+    let identity = warp_identity_from_secret(secret)
+        .ok()
+        .and_then(|identity| MasqueTlsIdentity::from_warp_identity(&identity).ok())
+        .map(|identity| identity.with_fingerprint(profile.tls_fingerprint));
+    let Some(identity) = identity else {
+        return Some(serde_json::json!({"code":"identity_unavailable","results":[]}));
+    };
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().ok()?;
+    let results = runtime.block_on(usque_transport::probe_h3_endpoint_results(
+        &profile, &identity, Arc::clone(&protector), cancellation.clone(),
+    ));
+    let changed = protector.network_generation() != Some(generation);
+    let rows: Vec<serde_json::Value> = results.into_iter().map(|item| {
+        let (code, milliseconds) = match item.result {
+            ProbeResult::Passed { milliseconds } => ("passed", Some(milliseconds)),
+            ProbeResult::NotApplicable => ("not_applicable", None),
+            ProbeResult::Failed => ("failed", None),
+            ProbeResult::TimedOut => ("timeout", None),
+            ProbeResult::Cancelled => ("cancelled", None),
+            ProbeResult::NetworkChanged => ("network_changed", None),
+        };
+        serde_json::json!({
+            "ip": item.endpoint.ip().to_string(),
+            "port": item.endpoint.port(),
+            "protocol": "H3",
+            "code": code,
+            "milliseconds": milliseconds
+        })
+    }).collect();
+    drop(runtime);
+    Some(serde_json::json!({
+        "code": if cancellation.is_cancelled() { "cancelled" } else if changed { "network_changed" } else { "complete" },
+        "network_generation": generation,
+        "results": rows
+    }))
+}
+
 #[cfg(not(target_os = "android"))]
 fn run_probe(
     _environment: &mut Env<'_>,
