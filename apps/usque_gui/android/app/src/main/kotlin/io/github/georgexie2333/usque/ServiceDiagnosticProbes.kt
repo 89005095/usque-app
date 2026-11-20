@@ -66,7 +66,7 @@ internal class ServiceDiagnosticProbes(
             }
         }
         val json = profile()
-        if (id <= 0 || kind !in setOf("dns", "h3") || json == null || json.length > 256 * 1024 ||
+        if (id <= 0 || kind !in setOf("dns", "h3", "h3_scan") || json == null || json.length > 256 * 1024 ||
             (kind == "h3" && runtimeBusy())
         ) {
             respond(null)
@@ -83,7 +83,7 @@ internal class ServiceDiagnosticProbes(
             return
         }
         val timeout = Runnable { cancel(id) }
-        handler.postDelayed(timeout, 3_900L)
+        handler.postDelayed(timeout, if (kind == "h3_scan") 20_000L else 3_900L)
         try {
             executor.execute {
                 var secret = ByteArray(0)
@@ -96,14 +96,23 @@ internal class ServiceDiagnosticProbes(
                         }
                         if (!operation.cancelled.get()) {
                             result =
-                                NativeEngine.diagnosticProbe(
-                                    id,
-                                    requireNotNull(kind),
-                                    json,
-                                    secret,
-                                    service,
-                                    vpnProtected(),
-                                )
+                                if (kind == "h3_scan") {
+                                    NativeEngine.diagnosticEndpointScan(
+                                        id,
+                                        json,
+                                        secret,
+                                        service,
+                                    )
+                                } else {
+                                    NativeEngine.diagnosticProbe(
+                                        id,
+                                        requireNotNull(kind),
+                                        json,
+                                        secret,
+                                        service,
+                                        vpnProtected(),
+                                    )
+                                }
                         }
                     }
                 } catch (_: Exception) {
