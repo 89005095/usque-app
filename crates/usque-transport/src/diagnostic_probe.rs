@@ -137,6 +137,88 @@ pub async fn probe_h3_handshake(
         .public_result()
 }
 
+/// One independently measured authenticated WARP endpoint handshake.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EndpointHandshakeResult {
+    pub endpoint: SocketAddr,
+    pub result: NetworkProbeResult,
+}
+
+/// Measures the complete allowlisted H3 endpoint set one at a time.
+///
+/// Every attempt uses the caller's Android SocketProtector and the same
+/// authenticated MASQUE handshake as the normal transport. The serial order
+/// deliberately bounds socket use and ensures each probe lease is released
+/// before the next endpoint is opened. The caller must invoke this only while
+/// the VPN runtime is stopped.
+pub async fn probe_h3_endpoint_results(
+    profile: &Profile,
+    identity: &MasqueTlsIdentity,
+    protector: Arc<dyn SocketProtector>,
+    cancellation: CancellationToken,
+) -> Vec<EndpointHandshakeResult> {
+    use usque_core::{AutomaticEndpointPolicy, EndpointPool};
+
+    let generation = protector.network_generation();
+    let pool = EndpointPool::from_entitlement(identity.entitlement);
+    let policy = AutomaticEndpointPolicy::for_profile(profile, pool);
+    let mut endpoints = policy.h3_candidates();
+    endpoints.retain(|endpoint| match profile.ip_policy {
+        IpPolicy::Ipv4Only => endpoint.is_ipv4(),
+        IpPolicy::Ipv6Only => endpoint.is_ipv6(),
+        _ => true,
+    });
+    endpoints.retain(|endpoint| protector.endpoint_family_available(*endpoint) != Some(false));
+
+    let sni = if profile.data_plane == usque_core::DataPlaneMode::L4Proxy {
+        identity.l4_server_name().unwrap_or(&profile.endpoint.sni)
+    } else {
+        &profile.endpoint.sni
+    };
+    let mut results = Vec::with_capacity(endpoints.len());
+    for endpoint in endpoints {
+        if cancellation.is_cancelled() {
+            results.push(EndpointHandshakeResult {
+                endpoint,
+                result: NetworkProbeResult::Cancelled,
+            });
+            break;
+        }
+        if protector.network_generation() != generation {
+            results.push(EndpointHandshakeResult {
+                endpoint,
+                result: NetworkProbeResult::NetworkChanged,
+            });
+            break;
+        }
+        let started = Instant::now();
+        let result = tokio::select! {
+            biased;
+            _ = cancellation.cancelled() => NetworkProbeResult::Cancelled,
+            outcome = timeout(PROBE_IO_TIMEOUT, crate::h3::diagnostic::handshake(
+                endpoint,
+                sni,
+                identity,
+                Arc::clone(&protector),
+                cancellation.child_token(),
+            )) => match outcome {
+                Ok(outcome) => outcome.public_result(),
+                Err(_) => NetworkProbeResult::TimedOut,
+            },
+        };
+        let result = match result {
+            NetworkProbeResult::Passed { .. } =>
+                NetworkProbeResult::Passed { milliseconds: elapsed_ms(started) },
+            other => other,
+        };
+        results.push(EndpointHandshakeResult { endpoint, result });
+        if matches!(result, NetworkProbeResult::Cancelled | NetworkProbeResult::NetworkChanged) {
+            break;
+        }
+    }
+    results
+}
+
 /// The same family preference and forced-family policy as normal connection
 /// selection. No resolver lookup or endpoint discovery is performed.
 pub fn h3_probe_endpoints(profile: &Profile) -> Vec<SocketAddr> {
