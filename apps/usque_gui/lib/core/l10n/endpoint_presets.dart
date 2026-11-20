@@ -1,5 +1,7 @@
 const kEndpointPresetCatalogs = <String, Map<String, String>>{
   "en": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP quick select",
+    "endpoint_ip_quick_select_help": "Choose a Cloudflare WARP endpoint IP. Anycast routing does not guarantee a physical country or final exit region.",
     "endpoint_manual": "Manual entry",
     "endpoint_presets": "Built-in presets",
     "endpoint_preset_country": "Country",
@@ -16,6 +18,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
         "Using IPv4 fallback; the country may differ.",
   },
   "zh_CN": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP 快速选择",
+    "endpoint_ip_quick_select_help": "选择 WARP 连接端点 IP。Anycast 调度不保证实际接入机房或最终出口地区。",
     "endpoint_manual": "手动输入",
     "endpoint_presets": "内置预设",
     "endpoint_preset_country": "国家",
@@ -31,6 +35,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
     "endpoint_preset_fallback_active": "已回退至 IPv4，可能不在所选国家。",
   },
   "zh_TW": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP 快速選擇",
+    "endpoint_ip_quick_select_help": "選擇 WARP 連線端點 IP。Anycast 調度不保證實際接入機房或最終出口地區。",
     "endpoint_manual": "手動輸入",
     "endpoint_presets": "內建預設",
     "endpoint_preset_country": "國家",
@@ -46,6 +52,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
     "endpoint_preset_fallback_active": "已改用 IPv4，可能不在所選國家。",
   },
   "zh_HK": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP 快速選擇",
+    "endpoint_ip_quick_select_help": "選擇 WARP 連線端點 IP。Anycast 調度不保證實際接入機房或最終出口地區。",
     "endpoint_manual": "手動輸入",
     "endpoint_presets": "內置預設",
     "endpoint_preset_country": "國家",
@@ -61,6 +69,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
     "endpoint_preset_fallback_active": "已改用 IPv4，可能不在所選國家。",
   },
   "ja": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP quick select",
+    "endpoint_ip_quick_select_help": "Choose a Cloudflare WARP endpoint IP. Anycast routing does not guarantee a physical country or final exit region.",
     "endpoint_manual": "手動入力",
     "endpoint_presets": "組み込みプリセット",
     "endpoint_preset_country": "国",
@@ -76,6 +86,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
     "endpoint_preset_fallback_active": "IPv4 に切り替えました。国が異なる場合があります。",
   },
   "ko": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP quick select",
+    "endpoint_ip_quick_select_help": "Choose a Cloudflare WARP endpoint IP. Anycast routing does not guarantee a physical country or final exit region.",
     "endpoint_manual": "직접 입력",
     "endpoint_presets": "기본 프리셋",
     "endpoint_preset_country": "국가",
@@ -91,6 +103,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
     "endpoint_preset_fallback_active": "IPv4로 전환되어 국가가 다를 수 있습니다.",
   },
   "de": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP quick select",
+    "endpoint_ip_quick_select_help": "Choose a Cloudflare WARP endpoint IP. Anycast routing does not guarantee a physical country or final exit region.",
     "endpoint_manual": "Manuelle Eingabe",
     "endpoint_presets": "Voreinstellungen",
     "endpoint_preset_country": "Land",
@@ -107,6 +121,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
         "IPv4-Ersatz aktiv; das Land kann abweichen.",
   },
   "es": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP quick select",
+    "endpoint_ip_quick_select_help": "Choose a Cloudflare WARP endpoint IP. Anycast routing does not guarantee a physical country or final exit region.",
     "endpoint_manual": "Entrada manual",
     "endpoint_presets": "Preajustes",
     "endpoint_preset_country": "País",
@@ -123,6 +139,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
         "Usando IPv4; el país puede ser distinto.",
   },
   "pt": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP quick select",
+    "endpoint_ip_quick_select_help": "Choose a Cloudflare WARP endpoint IP. Anycast routing does not guarantee a physical country or final exit region.",
     "endpoint_manual": "Entrada manual",
     "endpoint_presets": "Predefinições",
     "endpoint_preset_country": "País",
@@ -139,6 +157,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
         "Usando IPv4; o país pode ser diferente.",
   },
   "fr": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP quick select",
+    "endpoint_ip_quick_select_help": "Choose a Cloudflare WARP endpoint IP. Anycast routing does not guarantee a physical country or final exit region.",
     "endpoint_manual": "Saisie manuelle",
     "endpoint_presets": "Préréglages",
     "endpoint_preset_country": "Pays",
@@ -155,6 +175,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
         "Repli en IPv4 ; le pays peut être différent.",
   },
   "nl": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP quick select",
+    "endpoint_ip_quick_select_help": "Choose a Cloudflare WARP endpoint IP. Anycast routing does not guarantee a physical country or final exit region.",
     "endpoint_manual": "Handmatig invoeren",
     "endpoint_presets": "Voorinstellingen",
     "endpoint_preset_country": "Land",
@@ -172,6 +194,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
         "IPv4-terugval actief; het land kan afwijken.",
   },
   "it": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP quick select",
+    "endpoint_ip_quick_select_help": "Choose a Cloudflare WARP endpoint IP. Anycast routing does not guarantee a physical country or final exit region.",
     "endpoint_manual": "Inserimento manuale",
     "endpoint_presets": "Preimpostazioni",
     "endpoint_preset_country": "Paese",
@@ -188,6 +212,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
         "Ripiego su IPv4; il paese può essere diverso.",
   },
   "pl": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP quick select",
+    "endpoint_ip_quick_select_help": "Choose a Cloudflare WARP endpoint IP. Anycast routing does not guarantee a physical country or final exit region.",
     "endpoint_manual": "Wpisz ręcznie",
     "endpoint_presets": "Ustawienia wbudowane",
     "endpoint_preset_country": "Kraj",
@@ -205,6 +231,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
         "Przełączono na IPv4; kraj może być inny.",
   },
   "ru": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP quick select",
+    "endpoint_ip_quick_select_help": "Choose a Cloudflare WARP endpoint IP. Anycast routing does not guarantee a physical country or final exit region.",
     "endpoint_manual": "Ввести вручную",
     "endpoint_presets": "Готовые варианты",
     "endpoint_preset_country": "Страна",
@@ -221,6 +249,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
         "Используется IPv4; страна может отличаться.",
   },
   "uk": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP quick select",
+    "endpoint_ip_quick_select_help": "Choose a Cloudflare WARP endpoint IP. Anycast routing does not guarantee a physical country or final exit region.",
     "endpoint_manual": "Ввести вручну",
     "endpoint_presets": "Готові варіанти",
     "endpoint_preset_country": "Країна",
@@ -237,6 +267,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
         "Використовується IPv4; країна може відрізнятися.",
   },
   "ar": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP quick select",
+    "endpoint_ip_quick_select_help": "Choose a Cloudflare WARP endpoint IP. Anycast routing does not guarantee a physical country or final exit region.",
     "endpoint_manual": "إدخال يدوي",
     "endpoint_presets": "إعدادات مدمجة",
     "endpoint_preset_country": "البلد",
@@ -252,6 +284,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
     "endpoint_preset_fallback_active": "تم الرجوع إلى IPv4؛ قد يختلف البلد.",
   },
   "fa": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP quick select",
+    "endpoint_ip_quick_select_help": "Choose a Cloudflare WARP endpoint IP. Anycast routing does not guarantee a physical country or final exit region.",
     "endpoint_manual": "ورود دستی",
     "endpoint_presets": "پیش‌تنظیم‌ها",
     "endpoint_preset_country": "کشور",
@@ -268,6 +302,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
         "از IPv4 استفاده می‌شود؛ ممکن است کشور متفاوت باشد.",
   },
   "id": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP quick select",
+    "endpoint_ip_quick_select_help": "Choose a Cloudflare WARP endpoint IP. Anycast routing does not guarantee a physical country or final exit region.",
     "endpoint_manual": "Input manual",
     "endpoint_presets": "Prasetel bawaan",
     "endpoint_preset_country": "Negara",
@@ -284,6 +320,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
         "Beralih ke IPv4; negara mungkin berbeda.",
   },
   "vi": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP quick select",
+    "endpoint_ip_quick_select_help": "Choose a Cloudflare WARP endpoint IP. Anycast routing does not guarantee a physical country or final exit region.",
     "endpoint_manual": "Nhập thủ công",
     "endpoint_presets": "Thiết lập có sẵn",
     "endpoint_preset_country": "Quốc gia",
@@ -301,6 +339,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
         "Đã chuyển sang IPv4; quốc gia có thể khác.",
   },
   "th": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP quick select",
+    "endpoint_ip_quick_select_help": "Choose a Cloudflare WARP endpoint IP. Anycast routing does not guarantee a physical country or final exit region.",
     "endpoint_manual": "ป้อนด้วยตนเอง",
     "endpoint_presets": "ค่าที่ตั้งไว้",
     "endpoint_preset_country": "ประเทศ",
@@ -317,6 +357,8 @@ const kEndpointPresetCatalogs = <String, Map<String, String>>{
         "เปลี่ยนไปใช้ IPv4 แล้ว; ประเทศอาจต่างออกไป",
   },
   "tr": {
+    "endpoint_ip_quick_select": "Cloudflare WARP IP quick select",
+    "endpoint_ip_quick_select_help": "Choose a Cloudflare WARP endpoint IP. Anycast routing does not guarantee a physical country or final exit region.",
     "endpoint_manual": "Elle giriş",
     "endpoint_presets": "Hazır ayarlar",
     "endpoint_preset_country": "Ülke",
