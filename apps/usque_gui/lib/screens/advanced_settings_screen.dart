@@ -50,6 +50,9 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
   late bool _presetMode;
   late EndpointPresetRegion _presetRegion;
   String _warpRegionPreference = 'us';
+  bool _warpScanBusy = false;
+  String? _warpScanError;
+  List<Map<String, Object?>> _warpScanResults = [];
   static const _warpRegionPreferenceKey = 'warp_region_preference';
   late bool _allowLan;
   late bool _disableQuic;
@@ -275,6 +278,71 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
     if (supported.contains(saved)) {
       setState(() => _warpRegionPreference = saved);
     }
+  }
+
+  Future<void> _scanWarpEndpoints() async {
+    if (_warpScanBusy) return;
+    setState(() {
+      _warpScanBusy = true;
+      _warpScanError = null;
+      _warpScanResults = [];
+    });
+    try {
+      final response = await widget.controller.scanWarpEndpoints();
+      final raw = response['results'];
+      final rows = raw is List
+          ? raw.whereType<Map>().map((row) => Map<String, Object?>.from(row)).toList()
+          : <Map<String, Object?>>[];
+      rows.sort((a, b) {
+        final av = a['milliseconds'] is num ? (a['milliseconds'] as num).toInt() : 1 << 30;
+        final bv = b['milliseconds'] is num ? (b['milliseconds'] as num).toInt() : 1 << 30;
+        return av.compareTo(bv);
+      });
+      if (!mounted) return;
+      setState(() {
+        _warpScanResults = rows;
+        final code = response['code']?.toString();
+        if (code != 'complete') {
+          _warpScanError = switch (code) {
+            'network_changed' => '网络发生变化，请重新测速。',
+            'cancelled' => '测速已取消。',
+            'timeout' => '测速超时，请重试。',
+            'not_applicable' => '请先断开 VPN，并确认当前配置支持 H3。',
+            'identity_unavailable' => '无法读取当前 WARP 身份，请检查账号状态。',
+            _ => '测速未能完整完成，请重试。',
+          };
+        }
+      });
+    } catch (error) {
+      if (mounted) setState(() => _warpScanError = error.toString());
+    } finally {
+      if (mounted) setState(() => _warpScanBusy = false);
+    }
+  }
+
+  Future<void> _cancelWarpEndpointScan() async {
+    try {
+      await widget.controller.cancelWarpEndpointScan();
+    } catch (_) {
+      // The scan result still has its own bounded timeout and cleanup path.
+    }
+  }
+
+  void _selectScannedEndpoint(Map<String, Object?> row) {
+    final ip = row['ip']?.toString() ?? '';
+    final parsed = InternetAddress.tryParse(ip);
+    if (parsed == null || row['code'] != 'passed') return;
+    setState(() {
+      _endpointSelection = EndpointSelection.custom;
+      if (parsed.type == InternetAddressType.IPv6) {
+        _endpointV6.text = ip;
+        _ipPolicy = IpPolicy.ipv6Only;
+      } else {
+        _endpointV4.text = ip;
+        _ipPolicy = IpPolicy.ipv4Only;
+      }
+    });
+    _edited();
   }
 
   void _load(UsqueProfile profile, {bool baseline = true}) {
@@ -678,6 +746,58 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
                       );
                     },
             ),
+          if (addresses && quickCandidates.isNotEmpty) ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  FilledButton.tonalIcon(
+                    onPressed: _saving || _warpScanBusy ? null : _scanWarpEndpoints,
+                    icon: const Icon(LucideIcons.activity),
+                    label: Text(_warpScanBusy ? '正在测速…' : '扫描并测速 WARP IP'),
+                  ),
+                  if (_warpScanBusy)
+                    TextButton.icon(
+                      onPressed: _cancelWarpEndpointScan,
+                      icon: const Icon(LucideIcons.x),
+                      label: const Text('取消'),
+                    ),
+                ],
+              ),
+            ),
+            const Text(
+              '真实 Cloudflare WARP H3 握手测速；请先断开 VPN。结果只代表当前网络下的握手耗时，不代表出口国家。',
+              style: TextStyle(fontSize: 12),
+            ),
+            if (_warpScanError != null)
+              Text(_warpScanError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            for (final row in _warpScanResults)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  row['code'] == 'passed' ? LucideIcons.checkCircle2 : LucideIcons.circleX,
+                  color: row['code'] == 'passed'
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.error,
+                ),
+                title: Text('${row['ip'] ?? '未知 IP'} · ${row['protocol'] ?? 'H3'}'),
+                subtitle: Text(
+                  row['code'] == 'passed'
+                      ? '握手成功 · ${row['milliseconds']} ms'
+                      : '失败：${row['code'] ?? 'unknown'}',
+                ),
+                trailing: row['code'] == 'passed'
+                    ? TextButton(
+                        onPressed: _saving ? null : () => _selectScannedEndpoint(row),
+                        child: const Text('选择'),
+                      )
+                    : null,
+              ),
+          ],
           if (addresses && quickCandidates.isNotEmpty)
             DropdownButtonFormField<String>(
               key: const ValueKey('warp-endpoint-quick-select'),
