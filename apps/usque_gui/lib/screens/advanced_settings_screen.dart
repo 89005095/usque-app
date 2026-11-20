@@ -48,6 +48,7 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
   late EndpointSelection _endpointSelection;
   late bool _presetMode;
   late EndpointPresetRegion _presetRegion;
+  String _warpRegionPreference = 'us';
   late bool _allowLan;
   late bool _disableQuic;
   late DirectDnsSettings _directDns;
@@ -601,6 +602,29 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
       onUnlock: _unlockZtEndpoints,
       fields: ResponsiveEndpointFields(
         children: <Widget>[
+          if (addresses && quickCandidates.isNotEmpty)
+            DropdownButtonFormField<String>(
+              key: const ValueKey('warp-region-preference'),
+              initialValue: _warpRegionPreference,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: strings.get('endpoint_preset_country'),
+                helperText:
+                    '地区仅作偏好标记；Cloudflare 官方未公布国家专属端点 IP 清单。',
+                helperMaxLines: 2,
+              ),
+              items: const [
+                DropdownMenuItem(value: 'us', child: Text('美国')),
+                DropdownMenuItem(value: 'de', child: Text('德国')),
+                DropdownMenuItem(value: 'fi', child: Text('芬兰')),
+              ],
+              onChanged: _saving
+                  ? null
+                  : (region) {
+                      if (region == null) return;
+                      setState(() => _warpRegionPreference = region);
+                    },
+            ),
           if (addresses && quickCandidates.isNotEmpty)
             DropdownButtonFormField<String>(
               key: const ValueKey('warp-endpoint-quick-select'),
