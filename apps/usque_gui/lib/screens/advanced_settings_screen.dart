@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../models/app_models.dart';
+import '../core/warp_endpoint_candidates.dart';
 import '../state/app_controller.dart';
 import '../widgets/common.dart';
 import '../widgets/context_help_button.dart';
@@ -560,6 +561,17 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
   Widget _endpointSection() {
     final strings = widget.controller.strings;
     final managed = _zeroTrustEndpointIpsManaged;
+    final identity = widget.controller.identityStatus(
+      widget.controller.activeProfile.id,
+    );
+    final quickCandidates =
+        !managed &&
+            identity.state == ProfileIdentityState.ready &&
+            identity.provider == IdentityProvider.consumer
+        ? warpEndpointCandidates(
+            freeTier: identity.licenseState == LicenseState.free,
+          )
+        : const <String>[];
     final addresses =
         (managed || _endpointSelection == EndpointSelection.custom) &&
         !_usingPreset;
@@ -589,6 +601,42 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
       onUnlock: _unlockZtEndpoints,
       fields: ResponsiveEndpointFields(
         children: <Widget>[
+          if (addresses && quickCandidates.isNotEmpty)
+            DropdownButtonFormField<String>(
+              key: const ValueKey('warp-endpoint-quick-select'),
+              initialValue: null,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: strings.get('endpoint_ip_quick_select'),
+                helperText: strings.get('endpoint_ip_quick_select_help'),
+                helperMaxLines: 3,
+              ),
+              items: [
+                for (final address in quickCandidates)
+                  DropdownMenuItem(
+                    value: address,
+                    child: Text(
+                      '${address.contains(':') ? 'IPv6' : 'IPv4'} · $address',
+                    ),
+                  ),
+              ],
+              onChanged: _saving
+                  ? null
+                  : (address) {
+                      if (address == null) return;
+                      final parsed = InternetAddress.tryParse(address);
+                      if (parsed?.type == InternetAddressType.IPv6) {
+                        _endpointV6.text = address;
+                        _endpointV4.clear();
+                        _ipPolicy = IpPolicy.ipv6Only;
+                      } else {
+                        _endpointV4.text = address;
+                        _endpointV6.clear();
+                        _ipPolicy = IpPolicy.ipv4Only;
+                      }
+                      _edited();
+                    },
+            ),
           if (_usingPreset)
             tvTextFormField(
               key: ValueKey(
