@@ -28,7 +28,15 @@ void main() {
       expect(candidates.toSet().length, candidates.length);
       for (final address in candidates) {
         expect(
-          address.contains(':') || RegExp(r'^\d{1,3}(?:\.\d{1,3}){3}$').hasMatch(address),
+          address.contains(':') ||
+              RegExp(r'^\d{1,3}(?:\.\d{1,3}){3}
+          isTrue,
+        );
+      }
+    }
+  });
+}
+).hasMatch(address),
           isTrue,
         );
       }
