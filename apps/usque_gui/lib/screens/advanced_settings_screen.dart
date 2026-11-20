@@ -616,7 +616,9 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
                   DropdownMenuItem(
                     value: address,
                     child: Text(
-                      address.contains(':') ? 'IPv6 · $address' : 'IPv4 · $address',
+                      address.contains(':')
+                          ? 'IPv6 · $address'
+                          : 'IPv4 · $address',
                     ),
                   ),
               ],
@@ -627,11 +629,9 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
                       final parsed = InternetAddress.tryParse(address);
                       if (parsed?.type == InternetAddressType.IPv6) {
                         _endpointV6.text = address;
-                        _endpointV4.clear();
                         _ipPolicy = IpPolicy.ipv6Only;
                       } else {
                         _endpointV4.text = address;
-                        _endpointV6.clear();
                         _ipPolicy = IpPolicy.ipv4Only;
                       }
                       _edited();
