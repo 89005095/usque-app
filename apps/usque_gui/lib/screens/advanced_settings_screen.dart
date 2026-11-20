@@ -157,13 +157,11 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
           .provider ==
       IdentityProvider.zeroTrust;
 
-  bool get _usingPreset =>
-      _presetMode &&
-      (_zeroTrustEndpointIpsManaged ||
-          _endpointSelection == EndpointSelection.custom);
+  // This build only exposes Cloudflare's public WARP endpoint IP candidates.
+  // Third-party regional DNS presets are intentionally disabled.
+  bool get _usingPreset => false;
 
-  bool get _presetSupported =>
-      widget.controller.engineCapabilities?.endpointPresets ?? false;
+  bool get _presetSupported => false;
 
   String? get _presetHostname => _presetRegion.hostname(
     widget.controller.identityStatus(widget.controller.activeProfile.id),
@@ -295,7 +293,7 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
     _tlsFingerprint = profile.tlsFingerprint;
     _ipPolicy = profile.ipPolicy;
     _endpointSelection = profile.endpointSelection;
-    _presetMode = profile.endpointPresetRegion != null;
+    _presetMode = false;
     _presetRegion = profile.endpointPresetRegion ?? EndpointPresetRegion.us;
     _allowLan = profile.allowLan;
     _disableQuic = profile.disableQuic;
@@ -305,6 +303,10 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
     _proxy = profile.proxy;
     if (baseline) {
       _baseline = _values;
+      if (profile.endpointPresetRegion != null) {
+        // Force one save so legacy third-party DNS presets are cleared.
+        _baseline.add('legacy-third-party-endpoint-preset');
+      }
       _editingAccountId = profile.id;
     }
     _loading = false;
