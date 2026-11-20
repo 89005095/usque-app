@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../models/app_models.dart';
 import '../core/warp_endpoint_candidates.dart';
+import '../models/app_models.dart';
 import '../state/app_controller.dart';
 import '../widgets/common.dart';
 import '../widgets/context_help_button.dart';
