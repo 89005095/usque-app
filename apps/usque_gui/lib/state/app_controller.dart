@@ -245,13 +245,13 @@ class AppController extends ChangeNotifier {
     if (engine is! WarpEndpointScanClient) {
       throw const EngineException('ENDPOINT_SCAN_UNAVAILABLE', 'WARP endpoint scanning is only available on Android.');
     }
-    return engine.scanWarpEndpoints();
+    return (engine as WarpEndpointScanClient).scanWarpEndpoints();
   }
 
   Future<void> cancelWarpEndpointScan() async {
     final engine = _engine;
     if (engine is WarpEndpointScanClient) {
-      await engine.cancelWarpEndpointScan();
+      await (engine as WarpEndpointScanClient).cancelWarpEndpointScan();
     }
   }
 
