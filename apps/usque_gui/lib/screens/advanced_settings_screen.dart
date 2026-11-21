@@ -706,7 +706,7 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
       onUnlock: _unlockZtEndpoints,
       fields: ResponsiveEndpointFields(
         children: <Widget>[
-          if (addresses && quickCandidates.isNotEmpty)
+          if (quickCandidates.isNotEmpty)
             DropdownButtonFormField<String>(
               key: const ValueKey('warp-region-preference'),
               initialValue: _warpRegionPreference,
@@ -746,7 +746,7 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
                       );
                     },
             ),
-          if (addresses && quickCandidates.isNotEmpty) ...[
+          if (quickCandidates.isNotEmpty) ...[
             Align(
               alignment: Alignment.centerLeft,
               child: Wrap(
@@ -798,7 +798,7 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
                     : null,
               ),
           ],
-          if (addresses && quickCandidates.isNotEmpty)
+          if (quickCandidates.isNotEmpty)
             DropdownButtonFormField<String>(
               key: const ValueKey('warp-endpoint-quick-select'),
               initialValue: null,
@@ -824,6 +824,7 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
                   : (address) {
                       if (address == null) return;
                       final parsed = InternetAddress.tryParse(address);
+                      _endpointSelection = EndpointSelection.custom;
                       if (parsed?.type == InternetAddressType.IPv6) {
                         _endpointV6.text = address;
                         _ipPolicy = IpPolicy.ipv6Only;
