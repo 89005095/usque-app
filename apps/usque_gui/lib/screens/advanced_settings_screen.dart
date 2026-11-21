@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../core/warp_endpoint_candidates.dart';
@@ -48,6 +49,11 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
   late EndpointSelection _endpointSelection;
   late bool _presetMode;
   late EndpointPresetRegion _presetRegion;
+  String _warpRegionPreference = 'us';
+  bool _warpScanBusy = false;
+  String? _warpScanError;
+  List<Map<String, Object?>> _warpScanResults = [];
+  static const _warpRegionPreferenceKey = 'warp_region_preference';
   late bool _allowLan;
   late bool _disableQuic;
   late DirectDnsSettings _directDns;
@@ -154,13 +160,11 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
           .provider ==
       IdentityProvider.zeroTrust;
 
-  bool get _usingPreset =>
-      _presetMode &&
-      (_zeroTrustEndpointIpsManaged ||
-          _endpointSelection == EndpointSelection.custom);
+  // This build only exposes Cloudflare's public WARP endpoint IP candidates.
+  // Third-party regional DNS presets are intentionally disabled.
+  bool get _usingPreset => false;
 
-  bool get _presetSupported =>
-      widget.controller.engineCapabilities?.endpointPresets ?? false;
+  bool get _presetSupported => false;
 
   String? get _presetHostname => _presetRegion.hostname(
     widget.controller.identityStatus(widget.controller.activeProfile.id),
@@ -259,7 +263,86 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
     _dnsV4 = TextEditingController();
     _dnsV6 = TextEditingController();
     _load(widget.controller.activeProfile);
+    _loadWarpRegionPreference();
     widget.controller.addListener(_accountChanged);
+  }
+
+  Future<void> _loadWarpRegionPreference() async {
+    final preferences = await SharedPreferences.getInstance();
+    final saved = preferences.getString(_warpRegionPreferenceKey);
+    if (!mounted || saved == null) return;
+    const supported = {
+      'us', 'jp', 'sg', 'hk', 'tw', 'kr', 'de', 'gb',
+      'fr', 'nl', 'fi', 'ca', 'au', 'br',
+    };
+    if (supported.contains(saved)) {
+      setState(() => _warpRegionPreference = saved);
+    }
+  }
+
+  Future<void> _scanWarpEndpoints() async {
+    if (_warpScanBusy) return;
+    setState(() {
+      _warpScanBusy = true;
+      _warpScanError = null;
+      _warpScanResults = [];
+    });
+    try {
+      final response = await widget.controller.scanWarpEndpoints();
+      final raw = response['results'];
+      final rows = raw is List
+          ? raw.whereType<Map>().map((row) => Map<String, Object?>.from(row)).toList()
+          : <Map<String, Object?>>[];
+      rows.sort((a, b) {
+        final av = a['milliseconds'] is num ? (a['milliseconds'] as num).toInt() : 1 << 30;
+        final bv = b['milliseconds'] is num ? (b['milliseconds'] as num).toInt() : 1 << 30;
+        return av.compareTo(bv);
+      });
+      if (!mounted) return;
+      setState(() {
+        _warpScanResults = rows;
+        final code = response['code']?.toString();
+        if (code != 'complete') {
+          _warpScanError = switch (code) {
+            'network_changed' => '网络发生变化，请重新测速。',
+            'cancelled' => '测速已取消。',
+            'timeout' => '测速超时，请重试。',
+            'not_applicable' => '请先断开 VPN，并确认当前配置支持 H3。',
+            'identity_unavailable' => '无法读取当前 WARP 身份，请检查账号状态。',
+            _ => '测速未能完整完成，请重试。',
+          };
+        }
+      });
+    } catch (error) {
+      if (mounted) setState(() => _warpScanError = error.toString());
+    } finally {
+      if (mounted) setState(() => _warpScanBusy = false);
+    }
+  }
+
+  Future<void> _cancelWarpEndpointScan() async {
+    try {
+      await widget.controller.cancelWarpEndpointScan();
+    } catch (_) {
+      // The scan result still has its own bounded timeout and cleanup path.
+    }
+  }
+
+  void _selectScannedEndpoint(Map<String, Object?> row) {
+    final ip = row['ip']?.toString() ?? '';
+    final parsed = InternetAddress.tryParse(ip);
+    if (parsed == null || row['code'] != 'passed') return;
+    setState(() {
+      _endpointSelection = EndpointSelection.custom;
+      if (parsed.type == InternetAddressType.IPv6) {
+        _endpointV6.text = ip;
+        _ipPolicy = IpPolicy.ipv6Only;
+      } else {
+        _endpointV4.text = ip;
+        _ipPolicy = IpPolicy.ipv4Only;
+      }
+    });
+    _edited();
   }
 
   void _load(UsqueProfile profile, {bool baseline = true}) {
@@ -278,7 +361,7 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
     _tlsFingerprint = profile.tlsFingerprint;
     _ipPolicy = profile.ipPolicy;
     _endpointSelection = profile.endpointSelection;
-    _presetMode = profile.endpointPresetRegion != null;
+    _presetMode = false;
     _presetRegion = profile.endpointPresetRegion ?? EndpointPresetRegion.us;
     _allowLan = profile.allowLan;
     _disableQuic = profile.disableQuic;
@@ -288,6 +371,10 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
     _proxy = profile.proxy;
     if (baseline) {
       _baseline = _values;
+      if (profile.endpointPresetRegion != null) {
+        // Force one save so legacy third-party DNS presets are cleared.
+        _baseline.add('legacy-third-party-endpoint-preset');
+      }
       _editingAccountId = profile.id;
     }
     _loading = false;
@@ -558,6 +645,24 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
     );
   }
 
+  String _warpRegionLabel(String region) => switch (region) {
+    'us' => '美国',
+    'jp' => '日本',
+    'sg' => '新加坡',
+    'hk' => '中国香港',
+    'tw' => '中国台湾',
+    'kr' => '韩国',
+    'de' => '德国',
+    'gb' => '英国',
+    'fr' => '法国',
+    'nl' => '荷兰',
+    'fi' => '芬兰',
+    'ca' => '加拿大',
+    'au' => '澳大利亚',
+    'br' => '巴西',
+    _ => '美国',
+  };
+
   Widget _endpointSection() {
     final strings = widget.controller.strings;
     final managed = _zeroTrustEndpointIpsManaged;
@@ -601,15 +706,107 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
       onUnlock: _unlockZtEndpoints,
       fields: ResponsiveEndpointFields(
         children: <Widget>[
-          if (addresses && quickCandidates.isNotEmpty)
+          if (quickCandidates.isNotEmpty)
+            DropdownButtonFormField<String>(
+              key: const ValueKey('warp-region-preference'),
+              initialValue: _warpRegionPreference,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: strings.get('endpoint_preset_country'),
+                helperText:
+                    '地区仅作偏好标记；Cloudflare 官方未公布国家专属端点 IP 清单。',
+                helperMaxLines: 2,
+              ),
+              items: const [
+                DropdownMenuItem(value: 'us', child: Text('美国')),
+                DropdownMenuItem(value: 'jp', child: Text('日本')),
+                DropdownMenuItem(value: 'sg', child: Text('新加坡')),
+                DropdownMenuItem(value: 'hk', child: Text('中国香港')),
+                DropdownMenuItem(value: 'tw', child: Text('中国台湾')),
+                DropdownMenuItem(value: 'kr', child: Text('韩国')),
+                DropdownMenuItem(value: 'de', child: Text('德国')),
+                DropdownMenuItem(value: 'gb', child: Text('英国')),
+                DropdownMenuItem(value: 'fr', child: Text('法国')),
+                DropdownMenuItem(value: 'nl', child: Text('荷兰')),
+                DropdownMenuItem(value: 'fi', child: Text('芬兰')),
+                DropdownMenuItem(value: 'ca', child: Text('加拿大')),
+                DropdownMenuItem(value: 'au', child: Text('澳大利亚')),
+                DropdownMenuItem(value: 'br', child: Text('巴西')),
+              ],
+              onChanged: _saving
+                  ? null
+                  : (region) async {
+                      if (region == null) return;
+                      setState(() => _warpRegionPreference = region);
+                      final preferences =
+                          await SharedPreferences.getInstance();
+                      await preferences.setString(
+                        _warpRegionPreferenceKey,
+                        region,
+                      );
+                    },
+            ),
+          if (quickCandidates.isNotEmpty) ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  FilledButton.tonalIcon(
+                    onPressed: _saving || _warpScanBusy ? null : _scanWarpEndpoints,
+                    icon: const Icon(LucideIcons.activity),
+                    label: Text(_warpScanBusy ? '正在测速…' : '扫描并测速 WARP IP'),
+                  ),
+                  if (_warpScanBusy)
+                    TextButton.icon(
+                      onPressed: _cancelWarpEndpointScan,
+                      icon: const Icon(LucideIcons.x),
+                      label: const Text('取消'),
+                    ),
+                ],
+              ),
+            ),
+            const Text(
+              '真实 Cloudflare WARP H3 握手测速；请先断开 VPN。结果只代表当前网络下的握手耗时，不代表出口国家。',
+              style: TextStyle(fontSize: 12),
+            ),
+            if (_warpScanError != null)
+              Text(_warpScanError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            for (final row in _warpScanResults)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  row['code'] == 'passed' ? LucideIcons.checkCircle2 : LucideIcons.circleX,
+                  color: row['code'] == 'passed'
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.error,
+                ),
+                title: Text('${row['ip'] ?? '未知 IP'} · ${row['protocol'] ?? 'H3'}'),
+                subtitle: Text(
+                  row['code'] == 'passed'
+                      ? '握手成功 · ${row['milliseconds']} ms'
+                      : '失败：${row['code'] ?? 'unknown'}',
+                ),
+                trailing: row['code'] == 'passed'
+                    ? TextButton(
+                        onPressed: _saving ? null : () => _selectScannedEndpoint(row),
+                        child: const Text('选择'),
+                      )
+                    : null,
+              ),
+          ],
+          if (quickCandidates.isNotEmpty)
             DropdownButtonFormField<String>(
               key: const ValueKey('warp-endpoint-quick-select'),
               initialValue: null,
               isExpanded: true,
               decoration: InputDecoration(
                 labelText: strings.get('endpoint_ip_quick_select'),
-                helperText: strings.get('endpoint_ip_quick_select_help'),
-                helperMaxLines: 3,
+                helperText: '${strings.get('endpoint_ip_quick_select_help')}\n地区偏好：${_warpRegionLabel(_warpRegionPreference)}（不代表 IP 地理归属）',
+                helperMaxLines: 4,
               ),
               items: [
                 for (final address in quickCandidates)
@@ -627,6 +824,7 @@ class _AdvancedSettingsScreenState extends State<AdvancedSettingsScreen> {
                   : (address) {
                       if (address == null) return;
                       final parsed = InternetAddress.tryParse(address);
+                      _endpointSelection = EndpointSelection.custom;
                       if (parsed?.type == InternetAddressType.IPv6) {
                         _endpointV6.text = address;
                         _ipPolicy = IpPolicy.ipv6Only;

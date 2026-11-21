@@ -563,6 +563,7 @@ internal class VpnControlClient(
     )
 
     private var pendingNetworkProbe: Pair<Int, CompletableFuture<NetworkProbeReply>>? = null
+    private val pendingEndpointScans = mutableMapOf<Int, MethodChannel.Result>()
     private var pendingTimeline: Pair<Int, (Map<String, Any?>?) -> Unit>? = null
     private var pendingLogs: Pair<Int, (AndroidLogStore.Snapshot?) -> Unit>? = null
     private val pendingClearAll = mutableMapOf<Int, MethodChannel.Result>()
@@ -765,7 +766,8 @@ internal class VpnControlClient(
     private fun pendingLiveReads(): Boolean =
         pendingSnapshots.values.any { it !is ServiceResult } ||
             pendingSettings.values.any { it.result !is ServiceResult } ||
-            pendingDiagnosticProbes.isNotEmpty() || pendingTimeline != null || pendingLogs != null ||
+            pendingDiagnosticProbes.isNotEmpty() || pendingEndpointScans.isNotEmpty() ||
+            pendingTimeline != null || pendingLogs != null ||
             (pendingNetworkProbe != null && pendingNetworkProbeEpoch == serviceEpoch)
 
     private fun reconcileBindings() {
@@ -1125,6 +1127,39 @@ internal class VpnControlClient(
         }
     }
 
+    /** Starts a bounded authenticated WARP endpoint scan in the owning VPN service. */
+    fun requestEndpointScan(result: MethodChannel.Result) {
+        if (destroyed || pendingEndpointScans.isNotEmpty()) {
+            result.error("ENDPOINT_SCAN_BUSY", "An endpoint scan is already running or the service is unavailable.", null)
+            return
+        }
+        val service = endpoint
+        if (service == null) {
+            result.error("ENGINE_IPC_UNAVAILABLE", "Connect or initialize the VPN service before scanning endpoints.", null)
+            return
+        }
+        val id = allocateRequestId()
+        pendingEndpointScans[id] = result
+        if (!service.send(UsqueVpnService.MSG_DIAGNOSTIC_PROBE, id, mapOf("probe_kind" to "h3_scan"))) {
+            pendingEndpointScans.remove(id)
+            result.error("ENGINE_IPC_UNAVAILABLE", "The VPN service could not start the endpoint scan.", null)
+            return
+        }
+        postDelayed(20_500L, snapshotTimeoutToken(id)) {
+            pendingEndpointScans.remove(id)?.success("{\"code\":\"timeout\",\"results\":[]}")
+        }
+    }
+
+    fun cancelEndpointScan(result: MethodChannel.Result) {
+        val pending = pendingEndpointScans.keys.firstOrNull()
+        if (pending == null) {
+            result.success(false)
+            return
+        }
+        endpoint?.send(UsqueVpnService.MSG_CANCEL_DIAGNOSTIC_PROBE, pending)
+        result.success(true)
+    }
+
     /** One on-demand read, one callback, 750 ms; old native/service versions return no timeline. */
     fun requestTimeline(callback: (Map<String, Any?>?) -> Unit) {
         val service = endpoint
@@ -1286,6 +1321,12 @@ internal class VpnControlClient(
         id: Int,
         json: String?,
     ) {
+        pendingEndpointScans.remove(id)?.let { result ->
+            scheduler.cancel(snapshotTimeoutToken(id))
+            result.success(json ?: "{\"code\":\"failed\",\"results\":[]}")
+            reconcileBindings()
+            return
+        }
         pendingNetworkProbe?.takeIf { it.first == id }?.let { (_, response) ->
             // Accepted service probes reply after cleanup; rejected requests own no probe.
             pendingNetworkProbe = null
@@ -1651,6 +1692,11 @@ internal class VpnControlClient(
             callback(SnapshotProbe(lastSnapshot.toMap(), false))
         }
         pendingDiagnosticProbes.clear()
+        pendingEndpointScans.toMap().forEach { (id, result) ->
+            scheduler.cancel(snapshotTimeoutToken(id))
+            result.error("ENGINE_IPC_CLOSED", "The Android VPN service closed during the endpoint scan.", null)
+        }
+        pendingEndpointScans.clear()
         pendingNetworkProbe?.let { (id, response) ->
             endpoint?.send(UsqueVpnService.MSG_CANCEL_DIAGNOSTIC_PROBE, id)
             response.complete(NetworkProbeReply(null, false))

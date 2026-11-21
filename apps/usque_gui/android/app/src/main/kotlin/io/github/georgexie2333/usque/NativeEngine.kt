@@ -127,6 +127,26 @@ internal object NativeEngine {
             null
         }
 
+    fun diagnosticEndpointScan(
+        id: Int,
+        profile: String,
+        secret: ByteArray,
+        service: UsqueVpnService,
+    ): String? =
+        try {
+            if (libraryLoaded) nativeDiagnosticEndpointScan(id, profile, secret, service, false) else null
+        } catch (_: UnsatisfiedLinkError) {
+            null
+        }
+
+    private external fun nativeDiagnosticEndpointScan(
+        id: Int,
+        profile: String,
+        secret: ByteArray,
+        service: UsqueVpnService,
+        vpn: Boolean,
+    ): String?
+
     private external fun nativeValidateDiagnosticProfile(profile: String): Boolean
 
     private external fun nativePrepareDiagnosticProbe(id: Int): Boolean

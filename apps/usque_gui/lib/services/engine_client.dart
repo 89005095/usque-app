@@ -164,6 +164,12 @@ abstract interface class ControlOperationClient {
   Future<void> endControlOperation(String ownerToken);
 }
 
+/// Optional Android-only capability for authenticated Cloudflare WARP endpoint scans.
+abstract interface class WarpEndpointScanClient {
+  Future<Map<String, Object?>> scanWarpEndpoints();
+  Future<void> cancelWarpEndpointScan();
+}
+
 abstract interface class EngineClient {
   Future<NetworkSettingsState> saveNetworkSettings(
     String operationId,
@@ -432,6 +438,7 @@ class MethodChannelEngineClient
         InitialIdentityClient,
         OnboardingPermissionsClient,
         ControlOperationClient,
+        WarpEndpointScanClient,
         AdsRulesClient {
   bool _continuousConnection = false;
 
@@ -1035,6 +1042,24 @@ class MethodChannelEngineClient
   Future<EngineSnapshot> snapshot() async {
     final result = await _invoke<Map<Object?, Object?>>('snapshot');
     return _snapshotFromMap(result);
+  }
+
+  @override
+  Future<Map<String, Object?>> scanWarpEndpoints() async {
+    final raw = await _invoke<String>('scanWarpEndpoints');
+    if (raw == null || raw.length > 64 * 1024) {
+      throw const EngineException('ENDPOINT_SCAN_FAILED', 'Endpoint scan returned no valid result.');
+    }
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) {
+      throw const EngineException('ENDPOINT_SCAN_FAILED', 'Endpoint scan returned an invalid result.');
+    }
+    return Map<String, Object?>.from(decoded);
+  }
+
+  @override
+  Future<void> cancelWarpEndpointScan() async {
+    await _invoke<bool>('cancelWarpEndpointScan');
   }
 
   @override

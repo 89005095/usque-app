@@ -102,41 +102,36 @@ class EndpointFields extends StatelessWidget {
           const SizedBox(height: 16),
         ],
         if (custom) ...<Widget>[
-          LayoutBuilder(
-            builder: (context, constraints) => SegmentedButton<bool>(
-              key: const ValueKey('endpoint-custom-source'),
-              direction:
-                  constraints.maxWidth < 300 ||
-                      MediaQuery.textScalerOf(context).scale(1) > 1.3
-                  ? Axis.vertical
-                  : Axis.horizontal,
-              segments: [
-                ButtonSegment(
-                  value: false,
-                  label: Text(strings.get('endpoint_manual')),
-                ),
-                ButtonSegment(
-                  value: true,
-                  label: Text(strings.get('endpoint_presets')),
-                  enabled: presetSupported && presetVerified,
-                ),
-              ],
-              selected: {presetMode},
-              onSelectionChanged: saving
-                  ? null
-                  : (values) => onPresetMode(values.first),
-              showSelectedIcon: false,
-            ),
-          ),
-          if (!presetSupported || !presetVerified) ...[
-            const SizedBox(height: 8),
-            HintText(
-              strings.get(
-                !presetSupported
-                    ? 'endpoint_preset_unsupported'
-                    : 'endpoint_preset_verify',
+          if (presetSupported)
+            LayoutBuilder(
+              builder: (context, constraints) => SegmentedButton<bool>(
+                key: const ValueKey('endpoint-custom-source'),
+                direction:
+                    constraints.maxWidth < 300 ||
+                        MediaQuery.textScalerOf(context).scale(1) > 1.3
+                    ? Axis.vertical
+                    : Axis.horizontal,
+                segments: [
+                  ButtonSegment(
+                    value: false,
+                    label: Text(strings.get('endpoint_manual')),
+                  ),
+                  ButtonSegment(
+                    value: true,
+                    label: Text(strings.get('endpoint_presets')),
+                    enabled: presetVerified,
+                  ),
+                ],
+                selected: {presetMode},
+                onSelectionChanged: saving
+                    ? null
+                    : (values) => onPresetMode(values.first),
+                showSelectedIcon: false,
               ),
             ),
+          if (presetSupported && !presetVerified) ...[
+            const SizedBox(height: 8),
+            HintText(strings.get('endpoint_preset_verify')),
           ],
           if (usingPreset) ...[
             const SizedBox(height: 16),

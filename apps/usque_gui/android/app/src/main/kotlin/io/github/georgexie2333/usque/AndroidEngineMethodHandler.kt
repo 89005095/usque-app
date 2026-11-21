@@ -479,6 +479,14 @@ internal class AndroidEngineMethodHandler(
                 controlClient.requestSnapshot(result)
             }
 
+            "scanWarpEndpoints" -> {
+                controlClient.requestEndpointScan(result)
+            }
+
+            "cancelWarpEndpointScan" -> {
+                controlClient.cancelEndpointScan(result)
+            }
+
             "startDiagnostics" -> {
                 val generation = dataGeneration.get()
                 val mode = call.argument<String>("mode")

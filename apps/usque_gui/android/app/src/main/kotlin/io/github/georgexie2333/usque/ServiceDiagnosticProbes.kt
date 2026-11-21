@@ -66,8 +66,8 @@ internal class ServiceDiagnosticProbes(
             }
         }
         val json = profile()
-        if (id <= 0 || kind !in setOf("dns", "h3") || json == null || json.length > 256 * 1024 ||
-            (kind == "h3" && runtimeBusy())
+        if (id <= 0 || kind !in setOf("dns", "h3", "h3_scan") || json == null || json.length > 256 * 1024 ||
+            (kind in setOf("h3", "h3_scan") && runtimeBusy())
         ) {
             respond(null)
             return
@@ -83,27 +83,36 @@ internal class ServiceDiagnosticProbes(
             return
         }
         val timeout = Runnable { cancel(id) }
-        handler.postDelayed(timeout, 3_900L)
+        handler.postDelayed(timeout, if (kind == "h3_scan") 20_000L else 3_900L)
         try {
             executor.execute {
                 var secret = ByteArray(0)
                 var result: String? = null
                 try {
                     if (!operation.cancelled.get() && (kind != "h3" || !runtimeBusy())) {
-                        if (kind == "h3") {
+                        if (kind == "h3" || kind == "h3_scan") {
                             val profileId = JSONObject(json).optString("id")
                             secret = loadSecret(profileId, json) ?: ByteArray(0)
                         }
                         if (!operation.cancelled.get()) {
                             result =
-                                NativeEngine.diagnosticProbe(
-                                    id,
-                                    requireNotNull(kind),
-                                    json,
-                                    secret,
-                                    service,
-                                    vpnProtected(),
-                                )
+                                if (kind == "h3_scan") {
+                                    NativeEngine.diagnosticEndpointScan(
+                                        id,
+                                        json,
+                                        secret,
+                                        service,
+                                    )
+                                } else {
+                                    NativeEngine.diagnosticProbe(
+                                        id,
+                                        requireNotNull(kind),
+                                        json,
+                                        secret,
+                                        service,
+                                        vpnProtected(),
+                                    )
+                                }
                         }
                     }
                 } catch (_: Exception) {
