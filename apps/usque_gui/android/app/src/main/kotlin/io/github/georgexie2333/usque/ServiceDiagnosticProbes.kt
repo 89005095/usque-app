@@ -90,7 +90,7 @@ internal class ServiceDiagnosticProbes(
                 var result: String? = null
                 try {
                     if (!operation.cancelled.get() && (kind != "h3" || !runtimeBusy())) {
-                        if (kind == "h3") {
+                        if (kind == "h3" || kind == "h3_scan") {
                             val profileId = JSONObject(json).optString("id")
                             secret = loadSecret(profileId, json) ?: ByteArray(0)
                         }
